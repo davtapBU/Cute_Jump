@@ -1,3 +1,3 @@
-# Unnamed_Game
+# Cute Jump
 
-This is the Git repo for a work-in-progress! :D
+A doodle jump clone using Cute assets from LostGarden
