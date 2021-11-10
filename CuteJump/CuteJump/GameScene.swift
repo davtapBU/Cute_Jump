@@ -176,24 +176,212 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func checkPhoneTilt() {
+        var defaultAcceleration = 9.8
+        if let accelerometerData = motionManager.accelerometerData {
+            var xAcceleration = accelerometerData.acceleration.x * 10
+            if xAcceleration > defaultAcceleration {
+                xAcceleration = defaultAcceleration
+            }
+            else if xAcceleration < -defaultAcceleration {
+                xAcceleration = -defaultAcceleration
+            }
+            player.run(SKAction.rotate(toAngle: CGFloat(-xAcceleration/5), duration: 0.1))
+            if isGameStarted {
+                if isSuperJumpOn {
+                    defaultAcceleration = -0.1
+                }
+                physicsWorld.gravity = CGVector(dx: xAcceleration, dy: -defaultAcceleration)
+            }
+        }
     }
     
     func checkPlayerPosition() {
+        let playerWidth = player.size.width
+        if player.position.y+playerWidth < 0 {
+            run(SKAction.playSoundFileNamed("gameOver", waitForCompletion: false))
+            saveScore()
+            //let menuScene = MenuScene.init(size: view!.bounds.size)
+            //view?.presentScene(menuScene)
+        }
+        setScore()
+        if player.position.x-playerWidth >= frame.size.width || player.position.x+playerWidth <= 0 {
+            fixPlayerPosition()
+        }
     }
     
     func saveScore() {
+        UserDefaults.standard.setValue(highestScore, forKey: "LastScore")
+        if highestScore > UserDefaults.standard.integer(forKey: "HighScore") {
+            UserDefaults.standard.setValue(highestScore, forKey: "HighScore")
+        }
     }
     
     func setScore() {
+        let oldScore = score
+        score = (Int(player.position.y) - Int(player.size.height/2)) - (Int(bottom.position.y) - Int(bottom.frame.size.height)/2)
+        score = score < 0 ? 0 : score
+        if score > oldScore {
+            star.texture = SKTexture(imageNamed: "star")
+            scoreLabel.fontColor = UIColor.init(red: 38/255, green: 120/255, blue: 95/255, alpha: 1)
+            if score > highestScore {
+                highestScore = score
+            }
+        }
+        else {
+            star.texture = SKTexture(imageNamed: "starBad")
+            scoreLabel.fontColor = UIColor.init(red: 136/255, green: 24/255, blue: 0/255, alpha: 1)
+        }
+        
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        numberFormatter.locale = Locale(identifier: "en_US")
+        let formattedScore = numberFormatter.string(from: NSNumber(value: score))
+        scoreLabel.text = (formattedScore ?? "0")
     }
     
     func checkPlayerVelocity() {
+        if let playerVelocity = player.physicsBody?.velocity.dx {
+            if playerVelocity > 1000 {
+                player.physicsBody?.velocity.dx = 1000
+            }
+            else if playerVelocity < -1000 {
+                player.physicsBody?.velocity.dx = -1000
+            }
+        }
     }
     
     func updatePalletsPositions() {
+        var minimumHeight: CGFloat = frame.size.height/2
+        guard let playerVelocity = player.physicsBody?.velocity.dy else {
+            return
+        }
+        var distance = playerVelocity/50
+        if isSuperJumpOn {
+            minimumHeight = 0
+            distance = 30 - superJumpCounter
+            superJumpCounter += 0.16
+        }
+        if player.position.y > minimumHeight && playerVelocity > 0 {
+            for pallet in pallets {
+                pallet.position.y -= distance
+                if pallet.position.y < 0-pallet.frame.size.height/2 {
+                    update(pallet: pallet, positionY: pallet.position.y)
+                }
+            }
+            bottom.position.y -= distance
+        }
     }
     
     func update(pallet: SKSpriteNode, positionY: CGFloat) {
+        pallet.position.x = CGFloat.random(in: 0...frame.size.width)
+        
+        var direction = "Left"
+        if pallet.position.x > frame.midX {
+            direction = "Right"
+        }
+        
+        pallet.removeAllActions()
+        pallet.alpha = 1.0
+        if Int.random(in: 1...35) == 1 {
+            pallet.texture = SKTexture(imageNamed: "grassPlatform")
+            updateSizeOf(pallet: pallet)
+            pallet.physicsBody?.categoryBitMask = PhysicsCategories.grassPlatform
+        }
+        else if Int.random(in: 1...5) == 1 {
+            pallet.texture = SKTexture(imageNamed: "movingPlatform" + direction)
+            updateSizeOf(pallet: pallet)
+            pallet.physicsBody?.categoryBitMask = PhysicsCategories.palletCategory
+            if direction == "Left" {
+                pallet.position.x = 0
+                animate(pallet: pallet, isLeft: true)
+            }
+            else {
+                pallet.position.x = frame.size.width
+                animate(pallet: pallet, isLeft: false)
+            }
+        }
+        else if Int.random(in: 1...5) == 1 {
+            pallet.texture = SKTexture(imageNamed: "dirtPlatform" + direction)
+            updateSizeOf(pallet: pallet)
+            pallet.physicsBody?.categoryBitMask = PhysicsCategories.dirtPlatform
+        }
+        else {
+            pallet.texture = SKTexture(imageNamed: "Platform" + direction)
+            updateSizeOf(pallet: pallet)
+            pallet.physicsBody?.categoryBitMask = PhysicsCategories.palletCategory
+        }
+        
+        pallet.position.y = frame.size.height + pallet.frame.size.height/2 + pallet.position.y
+    }
+    
+    func updateSizeOf(pallet: SKSpriteNode) {
+        if let textureSize = pallet.texture?.size() {
+            pallet.size = CGSize(width: textureSize.width, height: textureSize.height)
+            pallet.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: pallet.size.width, height: pallet.size.height))
+            pallet.physicsBody?.isDynamic = false
+            pallet.physicsBody?.affectedByGravity = false
+        }
+    }
+    
+    func animate(pallet: SKSpriteNode, isLeft: Bool) {
+        let distanceX = isLeft ? frame.size.width : -frame.size.width
+        pallet.run(SKAction.moveBy(x: distanceX, y: 0, duration: 2)) {
+            pallet.run(SKAction.moveBy(x: -distanceX, y: 0, duration: 2)) {
+                self.animate(pallet: pallet, isLeft: isLeft)
+            }
+        }
+    }
+    
+    func fixPlayerPosition() {
+        let playerWidth = player.size.width
+        if player.position.x >= frame.size.width {
+            player.position.x = 0 - playerWidth/2+1
+        }
+        else {
+            player.position.x = frame.size.width + playerWidth/2-1
+        }
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if !isGameStarted {
+            player.physicsBody?.velocity.dy = frame.size.height*1.2 - player.position.y
+            isGameStarted = true
+            run(playJumpSound)
+        }
+    }
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        let contactMask = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
+        if let playerVelocity = player.physicsBody?.velocity.dy {
+            if playerVelocity < 0 {
+                if contactMask == PhysicsCategories.playerCategory | PhysicsCategories.palletCategory {
+                    run(playJumpSound)
+                    player.physicsBody?.velocity.dy = frame.size.height*1.2 - player.position.y
+                }
+                else if contactMask == PhysicsCategories.playerCategory | PhysicsCategories.dirtPlatform {
+                    run(playJumpSound)
+                    run(playBreakSound)
+                    player.physicsBody?.velocity.dy = frame.size.height*1.2 - player.position.y
+                    if let platform = (contact.bodyA.node?.name != "Player") ? contact.bodyA.node as? SKSpriteNode : contact.bodyB.node as? SKSpriteNode {
+                        platform.physicsBody?.categoryBitMask = PhysicsCategories.none
+                        platform.run(SKAction.fadeOut(withDuration: 0.5))
+                    }
+                }
+                else if contactMask == PhysicsCategories.playerCategory | PhysicsCategories.grassPlatform {
+                    run(SKAction.playSoundFileNamed("superJump", waitForCompletion: false))
+                    player.physicsBody?.velocity.dy = 10
+                    isSuperJumpOn = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        self.isSuperJumpOn = false
+                        self.superJumpCounter = 0
+                    }
+                }
+            }
+        }
+        
+        //Cause haptic feedback upon impact of 2 objects
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred()
     }
 }
 
