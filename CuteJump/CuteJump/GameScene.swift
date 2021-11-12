@@ -1,6 +1,6 @@
 //
 //  GameScene.swift
-//  GyroGame
+//  CuteJump
 //
 //  Created by David Tapia on 10/21/21.
 //
@@ -19,7 +19,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var isGameStarted = false
     let star = SKSpriteNode(imageNamed: "star")
     let playJumpSound = SKAction.playSoundFileNamed("jump", waitForCompletion: false)
-    let playBreakSound = SKAction.playSoundFileNamed("break", waitForCompletion: false)
+    let playBreakSound = SKAction.playSoundFileNamed("breakingSound", waitForCompletion: false)
     var isSuperJumpOn = false
     var superJumpCounter: CGFloat = 0
     
@@ -27,13 +27,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     //Layers
     var backgroundNode: SKNode!
-    var foregroundNode : SKNode!
     
     //Scale factor
     var scaleFactor: CGFloat!
     
     //Player/Objects
-    var player = SKSpriteNode(imageNamed: "player")
+    var player = SKSpriteNode(imageNamed: "Player")
     var pallets = [SKSpriteNode]()
     
     
@@ -52,14 +51,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createWorld() {
-        createBackForeground()
+        createBackground()
         createScore()
         createPlayer()
         createBottom()
         createPallets()
     }
     
-    func createBackForeground()
+    func createBackground()
     {
         // Create the background node
         let backgroundNode = SKNode()
@@ -69,30 +68,27 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         for index in 0...19 {
             let node = SKSpriteNode(imageNamed:String(format: "Background%02d", index + 1))
             node.setScale(scaleFactor)
+            node.zPosition = ZPositions.background
             node.anchorPoint = CGPoint(x: 0.5, y: 0.0)
             node.position = CGPoint(x: self.size.width / 2, y: ySpacing * CGFloat(index))
             backgroundNode.addChild(node)
         }
         addChild(backgroundNode)
-        
-        // Foreground
-        foregroundNode = SKNode()
-        addChild(foregroundNode)
     }
     
     
     func createScore() {
         star.texture = SKTexture(imageNamed: "star")
-        star.position = CGPoint(x: 20 + star.size.width/2, y: frame.height - (view?.safeAreaInsets.top ?? 10) - 20)
+        star.position = CGPoint(x: 100 + star.size.width/2, y: frame.height - (view?.safeAreaInsets.top ?? 10) - 50)
         star.zPosition = ZPositions.star
         addChild(star)
         
-        scoreLabel.fontSize = 24.0
-        scoreLabel.fontName = "HelveticaNeue-Bold"
-        scoreLabel.fontColor = UIColor.init(red: 38/255, green: 120/255, blue: 95/255, alpha: 1)
+        scoreLabel.fontSize = 46.0
+        scoreLabel.fontName = "Bradley Hand"
+        scoreLabel.fontColor = UIColor.init(red: 255/255, green: 255/255, blue: 255/255, alpha: 1)
         scoreLabel.verticalAlignmentMode = .center
         scoreLabel.horizontalAlignmentMode = .left
-        scoreLabel.position = CGPoint(x: star.position.x + star.frame.width/2 + 10, y: star.position.y)
+        scoreLabel.position = CGPoint(x: star.position.x + star.frame.width/2 + 10, y: star.position.y-20)
         scoreLabel.zPosition = ZPositions.scoreLabel
         addChild(scoreLabel)
     }
@@ -101,7 +97,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.name = "Player"
         player.position = CGPoint(x: frame.midX, y: 20 + player.size.height/2)
         player.zPosition = ZPositions.player
-        player.setScale(1.5)
+        player.setScale(1.1)
         player.physicsBody = SKPhysicsBody(circleOfRadius: player.size.width / 2)
         player.physicsBody?.affectedByGravity = true
         player.physicsBody?.categoryBitMask = PhysicsCategories.playerCategory
@@ -114,7 +110,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func createBottom() {
         bottom = SKShapeNode(rectOf: CGSize(width: frame.width*2, height: 20))
         bottom.position = CGPoint(x: frame.midX, y: 10)
-        bottom.fillColor = UIColor.init(red: 25/255, green: 105/255, blue: 81/255, alpha: 1)
+        bottom.fillColor = UIColor.init(red: 25/255, green: 105/255, blue: 74/255, alpha: 1)
         bottom.strokeColor = bottom.fillColor
         bottom.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: frame.width, height: 20))
         bottom.physicsBody?.affectedByGravity = false
@@ -137,33 +133,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         pallet.position = position
         pallet.zPosition = ZPositions.pallet
-        pallet.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: pallet.size.width, height: pallet.size.height))
+        pallet.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: pallet.size.width, height:1.0))
         pallet.physicsBody?.categoryBitMask = PhysicsCategories.palletCategory
         pallet.physicsBody?.isDynamic = false
         pallet.physicsBody?.affectedByGravity = false
         pallets.append(pallet)
         addChild(pallet)
-    }
-    
-    func createPallet() -> SKNode {
-        let palletNode = SKNode()
-        palletNode.position = CGPoint(x: self.size.width / 2, y: 80.0)
-        
-        let sprite = SKSpriteNode(imageNamed: "Platform")
-        sprite.setScale(3.0)
-        palletNode.addChild(sprite)
-        
-        palletNode.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: sprite.size.width, height: sprite.size.height))
-        palletNode.physicsBody?.isDynamic = false
-        palletNode.physicsBody?.allowsRotation = false
-        palletNode.physicsBody?.restitution = 1.0
-        palletNode.physicsBody?.friction = 0.0
-        palletNode.physicsBody?.angularDamping = 0.0
-        palletNode.physicsBody?.linearDamping = 0.0
-        
-        palletNode.physicsBody?.contactTestBitMask = 1
-        
-        return palletNode
     }
     
     override func update(_ currentTime: TimeInterval) {
@@ -180,10 +155,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if let accelerometerData = motionManager.accelerometerData {
             var xAcceleration = accelerometerData.acceleration.x * 10
             if xAcceleration > defaultAcceleration {
-                xAcceleration = defaultAcceleration
+                xAcceleration = defaultAcceleration + 10.0
             }
             else if xAcceleration < -defaultAcceleration {
-                xAcceleration = -defaultAcceleration
+                xAcceleration = -defaultAcceleration - 10.0
             }
             player.run(SKAction.rotate(toAngle: CGFloat(-xAcceleration/5), duration: 0.1))
             if isGameStarted {
@@ -204,7 +179,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             //view?.presentScene(menuScene)
         }
         setScore()
-        if player.position.x-playerWidth >= frame.size.width || player.position.x+playerWidth <= 0 {
+        if player.position.x+playerWidth >= frame.size.width || player.position.x+playerWidth <= 0 {
             fixPlayerPosition()
         }
     }
@@ -222,7 +197,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         score = score < 0 ? 0 : score
         if score > oldScore {
             star.texture = SKTexture(imageNamed: "star")
-            scoreLabel.fontColor = UIColor.init(red: 38/255, green: 120/255, blue: 95/255, alpha: 1)
+            scoreLabel.fontColor = UIColor.init(red: 255/255, green: 255/255, blue: 255/255, alpha: 1)
             if score > highestScore {
                 highestScore = score
             }
@@ -288,7 +263,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             pallet.physicsBody?.categoryBitMask = PhysicsCategories.grassPlatform
         }
         else if Int.random(in: 1...5) == 1 {
-            pallet.texture = SKTexture(imageNamed: "movingPlatform" + direction)
+            pallet.texture = SKTexture(imageNamed: "movingPlatform")
+            pallet.setScale(2.5)
             updateSizeOf(pallet: pallet)
             pallet.physicsBody?.categoryBitMask = PhysicsCategories.palletCategory
             if direction == "Left" {
@@ -301,12 +277,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
         }
         else if Int.random(in: 1...5) == 1 {
-            pallet.texture = SKTexture(imageNamed: "dirtPlatform" + direction)
+            pallet.texture = SKTexture(imageNamed: "dirtPlatform")
             updateSizeOf(pallet: pallet)
             pallet.physicsBody?.categoryBitMask = PhysicsCategories.dirtPlatform
         }
         else {
-            pallet.texture = SKTexture(imageNamed: "Platform" + direction)
+            pallet.texture = SKTexture(imageNamed: "Platform")
             updateSizeOf(pallet: pallet)
             pallet.physicsBody?.categoryBitMask = PhysicsCategories.palletCategory
         }
@@ -317,7 +293,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func updateSizeOf(pallet: SKSpriteNode) {
         if let textureSize = pallet.texture?.size() {
             pallet.size = CGSize(width: textureSize.width, height: textureSize.height)
-            pallet.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: pallet.size.width, height: pallet.size.height))
+            pallet.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: pallet.size.width, height: 1.0))
             pallet.physicsBody?.isDynamic = false
             pallet.physicsBody?.affectedByGravity = false
         }
@@ -371,7 +347,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     run(SKAction.playSoundFileNamed("superJump", waitForCompletion: false))
                     player.physicsBody?.velocity.dy = 10
                     isSuperJumpOn = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         self.isSuperJumpOn = false
                         self.superJumpCounter = 0
                     }
