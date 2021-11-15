@@ -37,12 +37,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     
     override func didMove(to view: SKView) {
-        
-        //Add gravity and initialize accelerometer
-        motionManager.startAccelerometerUpdates()
-        physicsWorld.contactDelegate = self
-        physicsWorld.gravity = CGVector(dx: 0, dy: 0)
-        
         //Adjust scale of objects to standard 320 point iPhone dimensions
         scaleFactor = self.size.width / 320.0
         
@@ -51,6 +45,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createWorld() {
+        createPhysicsWorld()
         createBackground()
         createScore()
         createPlayer()
@@ -58,10 +53,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         createPallets()
     }
     
+    func createPhysicsWorld() {
+        //Add gravity and initialize accelerometer
+        motionManager.startAccelerometerUpdates()
+        physicsWorld.contactDelegate = self
+        physicsWorld.gravity = CGVector(dx: 0, dy: 0)
+    }
+    
     func createBackground()
     {
         // Create the background node
-        let backgroundNode = SKNode()
+        backgroundNode = SKNode()
         let ySpacing = 64.0 * scaleFactor
         
         // Go through images until the entire background is built
@@ -148,6 +150,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             checkPlayerVelocity()
             updatePalletsPositions()
         }
+        
+        // Calculate player y offset
+        if player.position.y > 200.0 {
+            //Move the background at 10% of the players speed to create a parallax effet
+            backgroundNode.position = CGPoint(x: 0.0, y: -((player.position.y - 200.0)/10))
+        }
     }
     
     func checkPhoneTilt() {
@@ -175,8 +183,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if player.position.y+playerWidth < 0 {
             run(SKAction.playSoundFileNamed("gameOver", waitForCompletion: false))
             saveScore()
-            //let menuScene = MenuScene.init(size: view!.bounds.size)
-            //view?.presentScene(menuScene)
+            isGameStarted = false
+            removeAllChildren()
+            createWorld()
         }
         setScore()
         if player.position.x+playerWidth >= frame.size.width || player.position.x+playerWidth <= 0 {
